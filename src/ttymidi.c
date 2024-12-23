@@ -283,7 +283,25 @@ void parse_midi_command(snd_seq_t *seq, int port_out_id, char *buf)
 		snd_seq_ev_set_pitchbend(&ev, channel, param1 - 8192); // in alsa MIDI we want signed int
 		break;
 
-		/* Not implementing system commands (0xF0) */
+	case 0xF8:
+		if (!arguments.silent && arguments.verbose)
+			printf("Serial  0x%x Clock message\n", operation);
+		snd_seq_ev_set_sysex(&ev, 1, &operation); // Forward the clock message
+		break;
+
+	case 0xFA:
+		if (!arguments.silent && arguments.verbose)
+			printf("Serial  0x%x Start message\n", operation);
+		snd_seq_ev_set_direct(&ev); // Direct mode
+		ev.type = SND_SEQ_EVENT_START; // Event type for start
+		break;
+
+	case 0xFC:
+		if (!arguments.silent && arguments.verbose)
+			printf("Serial  0x%x Stop message\n", operation);
+		snd_seq_ev_set_direct(&ev);
+		ev.type = SND_SEQ_EVENT_STOP; // Event type for stop
+		break;
 
 	default:
 		if (!arguments.silent)
@@ -360,6 +378,24 @@ void write_midi_action_to_serial_port(snd_seq_t *seq_handle)
 			bytes[2] = (int)ev->data.control.value >> 7;
 			if (!arguments.silent && arguments.verbose)
 				printf("Alsa    0x%x Pitch bend         %03u %5d\n", bytes[0] & 0xF0, bytes[0] & 0xF, ev->data.control.value);
+			break;
+
+		case SND_SEQ_EVENT_CLOCK:
+			bytes[0] = 0xF8;
+			if (!arguments.silent && arguments.verbose)
+				printf("Alsa    0x%x Clock message\n", bytes[0]);
+			break;
+
+		case SND_SEQ_EVENT_START:
+			bytes[0] = 0xFA;
+			if (!arguments.silent && arguments.verbose)
+				printf("Alsa    0x%x Start message\n", bytes[0]);
+			break;
+
+		case SND_SEQ_EVENT_STOP:
+			bytes[0] = 0xFC;
+			if (!arguments.silent && arguments.verbose)
+				printf("Alsa    0x%x Stop message\n", bytes[0]);
 			break;
 
 		default:
